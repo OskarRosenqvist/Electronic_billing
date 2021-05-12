@@ -65,17 +65,17 @@ allowance_tax_id = config['Allowance']['allowance_tax_id']
 allowance_tax_percent = config['Allowance']['allowance_tax_percent']
 allowance_tax_scheme_id = config['Allowance']['allowance_tax_scheme_id']
 
-tax_amount = '331.25'
-taxable_amount = '1325'
+tax_amount = '0'
+taxable_amount = '0'
 tax_category_id = config['Tax']['tax_category_id']
 tax_percent = config['Tax']['tax_percent']
 tax_scheme_id = config['Tax']['tax_scheme_id']
 
-line_extension_amount = '1300'
-tax_exclusive_amount = '1325'
-tax_inclusive_amount = '1656.25'
-charge_total_amount = '25'
-payable_amount = '1656.25'
+line_extension_amount = '0'
+tax_exclusive_amount = '0'
+tax_inclusive_amount = '0'
+charge_total_amount = allowance_amount
+payable_amount = '0'
 ELEMENT_DATA = {f'{CBC}'+'CustomizationID': 'urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0',
                 f'{CBC}'+'ProfileID': 'urn:fdc:peppol.eu:2017:poacc:billing:01:1.0',
                 f'{CBC}'+'ID': '1'+str(random.randint(10000000000, 99999999999)),
@@ -151,7 +151,12 @@ while not_done == 'Y' or not_done == 'y':
     invoice_item_description = input('Description of item?: ')
     invoiced_quantity = input('Invoiced quantity?: ')
     invoice_price = input('Price per unit?: ')
-    invoice_line_ext_amount = int(invoiced_quantity) * float(invoice_price)
+    invoice_line_ext_amount = float(invoiced_quantity) * float(invoice_price)
+    line_extension_amount = float(line_extension_amount) + invoice_line_ext_amount
+    tax_exclusive_amount = line_extension_amount + int(charge_total_amount)
+    tax_amount = tax_exclusive_amount * float(tax_percent) / 100
+    tax_inclusive_amount = tax_exclusive_amount + tax_amount
+    payable_amount = tax_inclusive_amount
     INVOICE_LINE = {f'{CAC}' + 'InvoiceLine': {f'{CBC}' + 'ID': str(invoice_line_id),
                                                f'{CBC}' + 'InvoicedQuantity': invoiced_quantity,
                                                f'{CBC}' + 'LineExtensionAmount': str(invoice_line_ext_amount),
@@ -200,17 +205,32 @@ while not_done == 'Y' or not_done == 'y':
         else:
             invoice_elem.text = INVOICE_LINE[element]
 
+    LEGAL_MONETARY_TOTAL = {'/Invoice/cac:LegalMonetaryTotal/cbc:LineExtensionAmount': f'{line_extension_amount}', '/Invoice/cac:LegalMonetaryTotal/cbc:TaxExclusiveAmount': f'{tax_exclusive_amount}', '/Invoice/cac:LegalMonetaryTotal/cbc:TaxInclusiveAmount': f'{tax_inclusive_amount}', '/Invoice/cac:LegalMonetaryTotal/cbc:ChargeTotalAmount': f'{charge_total_amount}', '/Invoice/cac:LegalMonetaryTotal/cbc:PayableAmount': f'{payable_amount}'}
+
+    for path in LEGAL_MONETARY_TOTAL:
+        destination = root.xpath(path, namespaces=NSMAP)
+        for i in destination:
+            i.text = LEGAL_MONETARY_TOTAL[path]
+
+    TAX_TOTAL = {'/Invoice/cac:TaxTotal/cbc:TaxAmount': f'{tax_amount}',
+                            '/Invoice/cac:TaxTotal/cac:TaxSubtotal/cbc:TaxableAmount': f'{tax_exclusive_amount}',
+                            '/Invoice/cac:TaxTotal/cac:TaxSubtotal/cbc:TaxAmount': f'{tax_amount}'}
+
+    for path in TAX_TOTAL:
+        destination = root.xpath(path, namespaces=NSMAP)
+        for i in destination:
+            i.text = TAX_TOTAL[path]
 
     INVOICE_LINE_ATTRIBS = {'/Invoice/cac:InvoiceLine/cbc:InvoicedQuantity': {'unitCode': 'DAY'}, '/Invoice/cac:InvoiceLine/cbc:LineExtensionAmount': {'currencyID': 'EUR'}, '/Invoice/cac:InvoiceLine/cac:Item/cac:StandardItemIdentification/cbc:ID': {'schemeID': '0088'}, '/Invoice/cac:InvoiceLine/cac:Item/cac:CommodityClassification/cbc:ItemClassificationCode': {'listID': 'SRV'}, '/Invoice/cac:InvoiceLine/cac:Price/cbc:PriceAmount': {'currencyID': 'EUR'}}
 
-
-    for attrib in INVOICE_LINE_ATTRIBS:
-        para = root2.xpath(attrib, namespaces=NSMAP)
-        for attrib_name in INVOICE_LINE_ATTRIBS[attrib]:
-            for i in para:
-                i.attrib[attrib_name] = INVOICE_LINE_ATTRIBS[attrib][attrib_name]
+    for path in INVOICE_LINE_ATTRIBS:
+        attribute = root2.xpath(path, namespaces=NSMAP)
+        for attrib_name in INVOICE_LINE_ATTRIBS[path]:
+            for i in attribute:
+                i.attrib[attrib_name] = INVOICE_LINE_ATTRIBS[path][attrib_name]
 
     root.insert(len(root), root2.getchildren()[0])
+
     not_done = input('Do you want to add another Invoice line?(Y/y): ')
 
 
