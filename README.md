@@ -1,5 +1,5 @@
 # Electronic billing Invoice generator  
-(Proof of concept MWP, I must clean up the code)
+(Proof of concept MWP, I must clean up the code)<br>
 Generate PEPPOL BIS 3.0 electronic billing invoices
 
 Change Supplier data in config.ini and then run the python script ebill.py. You will be asked to input data for each billing line.
